@@ -28,7 +28,8 @@ def blocks_to_markdown(title: str, blocks: list, url: str) -> str:
             lines += [text, ""]
 
         elif btype == "code":
-            lines += ["```", block["text"].rstrip(), "```", ""]
+            lang = block.get("lang", "")
+            lines += [f"```{lang}", block["text"].rstrip(), "```", ""]
 
         elif btype == "blockquote":
             for line in text.splitlines():

@@ -1,4 +1,6 @@
 from bs4 import BeautifulSoup
+from pygments.lexers import guess_lexer
+from pygments.util import ClassNotFound
 
 
 _SKIP_CLASSES = {"pw-author-name", "pw-follower-count"}
@@ -12,6 +14,32 @@ def _has_class(el, cls):
 def _is_skip_heading(el):
     classes = set(el.get("class") or [])
     return bool(classes & _SKIP_CLASSES)
+
+
+_LANG_PATTERNS = [
+    ("tsx", ["React.FC", "React.memo", "JSX.Element"]),
+    ("typescript", ["interface ", ": string", ": number", ": boolean", ": void", "as const", "type ", "enum ", "Record<", "Partial<"]),
+    ("jsx", ["React.createElement", "PropTypes", "useState(", "useEffect(", "className="]),
+    ("javascript", ["const ", "let ", "var ", "function ", "=>", "console.log", "require(", "module.exports"]),
+    ("python", ["def ", "print(", "self.", "elif ", "lambda ", "__init__"]),
+    ("sql", ["SELECT ", "INSERT ", "UPDATE ", "DELETE ", "FROM ", "WHERE ", "JOIN "]),
+    ("bash", ["#!/bin/bash", "#!/bin/sh"]),
+    ("json", ['":', '"{']),
+    ("css", ["px;", "em;", "rem;", "color:", "margin:", "padding:", "font-size:"]),
+    ("html", ["<!DOCTYPE", "<html", "<head", "<body"]),
+]
+
+
+def _detect_lang(code: str) -> str:
+    for lang, keywords in _LANG_PATTERNS:
+        if any(kw in code for kw in keywords):
+            return lang
+    try:
+        lexer = guess_lexer(code)
+        alias = lexer.aliases[0] if lexer.aliases else ""
+        return alias if alias not in ("text",) else ""
+    except ClassNotFound:
+        return ""
 
 
 def _is_skip_blockquote(el):
@@ -53,7 +81,10 @@ def parse_article(html: str) -> dict:
             blocks.append({"type": "paragraph", "html": str(el), "text": el.get_text(strip=True)})
 
         elif tag == "pre":
-            blocks.append({"type": "code", "text": el.get_text()})
+            for br in el.find_all("br"):
+                br.replace_with("\n")
+            code_text = el.get_text()
+            blocks.append({"type": "code", "text": code_text, "lang": _detect_lang(code_text)})
 
         elif tag == "blockquote":
             if _is_skip_blockquote(el):
