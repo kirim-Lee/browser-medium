@@ -16,9 +16,11 @@ Medium 아티클을 이미 로그인된 Chrome 브라우저 세션(browser-harne
 | HTML 파싱       | `beautifulsoup4`   | 선택적 요소 처리 편리                                    |
 | HTML→MD 변환    | `markdownify`      | 포맷 보존 품질 우수                                      |
 | 번역            | `deepl` (공식 SDK) | 공식 API, 월 500k자 무료, 한국어 품질 우수               |
+| 번역 검증       | `nltk` + `kss`     | 1차 문장 수 비교 필터 (토큰 0 소모)                      |
+| 번역 검증 (LLM) | `anthropic`        | 의심 단락만 Claude API로 정밀 검증                       |
 | 이미지 다운로드 | `httpx`            | 비동기 처리 가능                                         |
 | CLI             | `click`            | 직관적인 CLI 인터페이스 구성                             |
-| 환경변수        | `python-dotenv`    | DeepL API 키 관리                                        |
+| 환경변수        | `python-dotenv`    | DeepL·Anthropic API 키 관리                              |
 
 ---
 
@@ -32,14 +34,22 @@ medium-translator/
 ├── translator.py            # DeepL 번역 처리
 ├── converter.py             # HTML → Markdown 변환
 ├── downloader.py            # 이미지 다운로드
-├── .env                     # DeepL API 키 (gitignore)
+├── validate.py              # 번역 검증 CLI 진입점
+├── validators/
+│   ├── nltk_filter.py       # 1단계: 문장 수 비교 (토큰 0)
+│   ├── llm_validator.py     # 2단계: Claude API 정밀 검증
+│   └── reporter.py          # 3단계: 리포트 생성
+├── .env                     # DeepL·Anthropic API 키 (gitignore)
 ├── .env.example             # 키 템플릿 (커밋 가능)
 ├── requirements.txt
-└── output/                  # 번역 결과 저장 폴더
-    └── {slug}/
-        ├── index.md
-        └── images/
-            └── *.png / *.jpg
+├── output/                  # 번역 결과 저장 폴더
+│   └── {slug}/
+│       ├── index.md         # 번역본
+│       ├── original.md      # 원문 (검증용)
+│       └── images/
+│           └── *.png / *.jpg
+└── reports/                 # 검증 리포트
+    └── {slug}_report.json
 ```
 
 ---
@@ -51,6 +61,9 @@ medium-translator/
 ```bash
 # 단일 아티클 번역
 python main.py translate <URL>
+
+# 번역 후 자동 검증까지
+python main.py translate <URL> --validate
 
 # 저장 경로 지정
 python main.py translate <URL> --output ./my-docs
@@ -73,6 +86,7 @@ python main.py translate <URL> --no-images
 | `--no-translate` | False      | 번역 스킵, 원문 MD만 저장        |
 | `--no-images`    | False      | 이미지 다운로드 스킵             |
 | `--lang`         | `KO`       | 번역 대상 언어 코드 (DeepL 형식) |
+| `--validate`     | False      | 번역 완료 후 자동 검증 실행      |
 
 ---
 
@@ -207,12 +221,14 @@ result = translator.translate_text(text, target_lang="KO")
 
 ```bash
 # .env
-DEEPL_AUTH_KEY=your-api-key-here
+DEEPL_AUTH_KEY=your-deepl-key-here
+ANTHROPIC_API_KEY=your-anthropic-key-here
 ```
 
 ```bash
 # .env.example (커밋용)
 DEEPL_AUTH_KEY=
+ANTHROPIC_API_KEY=
 ```
 
 ---
@@ -227,13 +243,17 @@ DEEPL_AUTH_KEY=
 | 번역 API 실패             | 원문 유지, 경고 로그              |
 | DeepL 할당량 초과         | 명확한 에러 메시지 출력 후 종료   |
 | 네트워크 타임아웃         | 3회 재시도 후 종료                |
+| 검증 중 LLM API 실패      | nltk 결과만 리포트, 경고 로그     |
 
 ---
 
 ## 의존성 설치
 
 ```bash
-pip install beautifulsoup4 markdownify deepl httpx click python-dotenv
+pip install beautifulsoup4 markdownify deepl httpx click python-dotenv anthropic nltk kss
+
+# nltk 데이터 다운로드 (최초 1회)
+python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
 ```
 
 > `playwright` 불필요 — browser-harness가 Chrome CDP 연결을 담당.
