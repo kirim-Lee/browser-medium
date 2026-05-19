@@ -1,6 +1,6 @@
 import json
-
-import anthropic
+import re
+import subprocess
 
 _PROMPT = """\
 아래는 영어 원문과 한국어 번역입니다.
@@ -21,9 +21,8 @@ _PROMPT = """\
 }}"""
 
 
-def validate_with_llm(flagged: list, auth_key: str, skip_short: int = 100) -> list:
-    """플래그된 단락만 Claude API로 검증. 토큰 절약을 위해 짧은 단락은 스킵."""
-    client = anthropic.Anthropic(api_key=auth_key)
+def validate_with_llm(flagged: list, skip_short: int = 100) -> list:
+    """플래그된 단락만 `claude -p`로 검증. ANTHROPIC_API_KEY 불필요."""
     results = []
 
     for item in flagged:
@@ -34,13 +33,19 @@ def validate_with_llm(flagged: list, auth_key: str, skip_short: int = 100) -> li
             results.append({**item, "llm_confirmed": False, "skipped": True})
             continue
 
+        prompt = _PROMPT.format(src=src, tgt=tgt)
         try:
-            msg = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=512,
-                messages=[{"role": "user", "content": _PROMPT.format(src=src, tgt=tgt)}],
+            proc = subprocess.run(
+                ["claude", "-p", prompt],
+                capture_output=True,
+                text=True,
+                timeout=60,
             )
-            parsed = json.loads(msg.content[0].text)
+            raw = proc.stdout.strip()
+            # 마크다운 코드블록(```json ... ```) 제거
+            match = re.search(r"```(?:json)?\s*([\s\S]+?)\s*```", raw)
+            raw = match.group(1) if match else raw
+            parsed = json.loads(raw)
             results.append(
                 {
                     **item,

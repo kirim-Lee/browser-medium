@@ -17,7 +17,7 @@ Medium 아티클을 이미 로그인된 Chrome 브라우저 세션(browser-harne
 | HTML→MD 변환    | `markdownify`      | 포맷 보존 품질 우수                                      |
 | 번역            | `deepl` (공식 SDK) | 공식 API, 월 500k자 무료, 한국어 품질 우수               |
 | 번역 검증       | `nltk` + `kss`     | 1차 문장 수 비교 필터 (토큰 0 소모)                      |
-| 번역 검증 (LLM) | `anthropic`        | 의심 단락만 Claude API로 정밀 검증                       |
+| 번역 검증 (LLM) | `claude -p`        | 의심 단락만 Claude Code 구독으로 정밀 검증               |
 | 이미지 다운로드 | `httpx`            | 비동기 처리 가능                                         |
 | CLI             | `click`            | 직관적인 CLI 인터페이스 구성                             |
 | 환경변수        | `python-dotenv`    | DeepL·Anthropic API 키 관리                              |
@@ -222,13 +222,11 @@ result = translator.translate_text(text, target_lang="KO")
 ```bash
 # .env
 DEEPL_AUTH_KEY=your-deepl-key-here
-ANTHROPIC_API_KEY=your-anthropic-key-here
 ```
 
 ```bash
 # .env.example (커밋용)
 DEEPL_AUTH_KEY=
-ANTHROPIC_API_KEY=
 ```
 
 ---
@@ -243,14 +241,14 @@ ANTHROPIC_API_KEY=
 | 번역 API 실패             | 원문 유지, 경고 로그              |
 | DeepL 할당량 초과         | 명확한 에러 메시지 출력 후 종료   |
 | 네트워크 타임아웃         | 3회 재시도 후 종료                |
-| 검증 중 LLM API 실패      | nltk 결과만 리포트, 경고 로그     |
+| 검증 중 `claude -p` 실패  | nltk 결과만 리포트, 경고 로그     |
 
 ---
 
 ## 의존성 설치
 
 ```bash
-pip install beautifulsoup4 markdownify deepl httpx click python-dotenv anthropic nltk kss
+pip install beautifulsoup4 markdownify deepl httpx click python-dotenv nltk kss
 
 # nltk 데이터 다운로드 (최초 1회)
 python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"

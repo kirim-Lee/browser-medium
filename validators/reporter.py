@@ -1,5 +1,4 @@
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -27,13 +26,7 @@ def run_validator(
     nltk_only_flags = []
 
     if not nltk_only and flagged:
-        auth_key = os.getenv("ANTHROPIC_API_KEY")
-        if not auth_key:
-            print("[warn] ANTHROPIC_API_KEY 없음 — nltk 결과만 사용")
-            nltk_only = True
-
-    if not nltk_only and flagged:
-        llm_results = validate_with_llm(flagged, auth_key, skip_short)
+        llm_results = validate_with_llm(flagged, skip_short)
         for r in llm_results:
             if r.get("llm_confirmed"):
                 issues.append(

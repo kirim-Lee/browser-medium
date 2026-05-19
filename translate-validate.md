@@ -247,18 +247,14 @@ if validate:
 ## 의존성
 
 ```bash
-pip install nltk kss anthropic
+pip install nltk kss
 
 # nltk 데이터 다운로드 (최초 1회)
 python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
 ```
 
-### 환경변수
-
-```bash
-# .env
-ANTHROPIC_API_KEY=your-anthropic-key-here
-```
+> LLM 검증은 `claude -p` (Claude Code CLI)를 subprocess로 호출.
+> `ANTHROPIC_API_KEY` 불필요 — Claude Code 구독으로 동작.
 
 ---
 
