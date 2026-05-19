@@ -4,7 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "format": "prettier --write \"**/*.md\" \"**/*.json\" --ignore-path .gitignore"
+    "format": "prettier --write \"**/*.md\" \"**/*.json\" --ignore-path .gitignore",
+    "translate": "python3 main.py translate",
+    "validate": "python3 validate.py",
+    "run-all": "f() { python3 main.py translate \"$1\" --validate; }; f",
+    "preview": "f() { markserv \"output/$1/index.md\"; }; f"
   },
   "keywords": [],
   "author": "",
