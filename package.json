@@ -1,0 +1,16 @@
+{
+  "name": "browser-medium",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "format": "prettier --write \"**/*.md\" \"**/*.json\" --ignore-path .gitignore"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "prettier": "^3.8.3"
+  }
+}

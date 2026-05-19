@@ -2,22 +2,23 @@ LI 스펙
 
 ## 개요
 
-Medium 아티클을 이미 로그인된 Chrome 브라우저 세션(browser-harness)으로 크롤링하여 이미지·코드블록을 보존한 채 한국어 Markdown 파일로 저장하는 CLI 도구.
+Medium 아티클을 이미 로그인된 Chrome 브라우저 세션(browser-harness)으로
+크롤링하여 이미지·코드블록을 보존한 채 한국어 Markdown 파일로 저장하는 CLI 도구.
 
 ---
 
 ## 기술 스택
 
-| 항목 | 선택 | 이유 |
-|------|------|------|
-| 언어 | Python 3.11+ | 파싱/번역 생태계 풍부 |
-| 크롤링 | `browser-harness` | 이미 로그인된 Chrome에 CDP로 연결, 별도 세션 관리 불필요 |
-| HTML 파싱 | `beautifulsoup4` | 선택적 요소 처리 편리 |
-| HTML→MD 변환 | `markdownify` | 포맷 보존 품질 우수 |
-| 번역 | `deepl` (공식 SDK) | 공식 API, 월 500k자 무료, 한국어 품질 우수 |
-| 이미지 다운로드 | `httpx` | 비동기 처리 가능 |
-| CLI | `click` | 직관적인 CLI 인터페이스 구성 |
-| 환경변수 | `python-dotenv` | DeepL API 키 관리 |
+| 항목            | 선택               | 이유                                                     |
+| --------------- | ------------------ | -------------------------------------------------------- |
+| 언어            | Python 3.11+       | 파싱/번역 생태계 풍부                                    |
+| 크롤링          | `browser-harness`  | 이미 로그인된 Chrome에 CDP로 연결, 별도 세션 관리 불필요 |
+| HTML 파싱       | `beautifulsoup4`   | 선택적 요소 처리 편리                                    |
+| HTML→MD 변환    | `markdownify`      | 포맷 보존 품질 우수                                      |
+| 번역            | `deepl` (공식 SDK) | 공식 API, 월 500k자 무료, 한국어 품질 우수               |
+| 이미지 다운로드 | `httpx`            | 비동기 처리 가능                                         |
+| CLI             | `click`            | 직관적인 CLI 인터페이스 구성                             |
+| 환경변수        | `python-dotenv`    | DeepL API 키 관리                                        |
 
 ---
 
@@ -61,16 +62,17 @@ python main.py translate <URL> --no-translate
 python main.py translate <URL> --no-images
 ```
 
-> `save-cookies` 커맨드 없음 — 이미 로그인된 Chrome 세션을 browser-harness가 자동으로 사용.
+> `save-cookies` 커맨드 없음 — 이미 로그인된 Chrome 세션을 browser-harness가
+> 자동으로 사용.
 
 ### 옵션 목록
 
-| 옵션 | 기본값 | 설명 |
-|------|--------|------|
-| `--output`, `-o` | `./output` | 저장 디렉토리 |
-| `--no-translate` | False | 번역 스킵, 원문 MD만 저장 |
-| `--no-images` | False | 이미지 다운로드 스킵 |
-| `--lang` | `KO` | 번역 대상 언어 코드 (DeepL 형식) |
+| 옵션             | 기본값     | 설명                             |
+| ---------------- | ---------- | -------------------------------- |
+| `--output`, `-o` | `./output` | 저장 디렉토리                    |
+| `--no-translate` | False      | 번역 스킵, 원문 MD만 저장        |
+| `--no-images`    | False      | 이미지 다운로드 스킵             |
+| `--lang`         | `KO`       | 번역 대상 언어 코드 (DeepL 형식) |
 
 ---
 
@@ -111,20 +113,34 @@ slug = urlparse(url).path.split('/')[-1]
 
 ### Medium 아티클 DOM 구조
 
-> **TODO**: 실제 Medium 링크 분석 후 확정 예정
+Medium은 대부분의 클래스명이 난독화되어 있지만 `pw-` 접두사 클래스는 안정적으로
+유지됨.
+
+| 요소            | 셀렉터                                 |
+| --------------- | -------------------------------------- |
+| 아티클 컨테이너 | `article.meteredContent`               |
+| 제목            | `h1.pw-post-title`                     |
+| 부제목          | `h2.pw-subtitle-paragraph`             |
+| 본문 단락       | `p.pw-post-body-paragraph`             |
+| 본문 소제목     | `h2` (pw- 클래스 없는 것, 아티클 내부) |
+| 코드블록        | `pre`                                  |
+| 이미지          | `figure img`                           |
+| 인용구          | `blockquote`                           |
+
+추출 순서는 DOM 순서 그대로 유지 (querySelector**All** → 배열 순회).
 
 ### 처리 대상 요소
 
-| 요소 | 처리 방법 |
-|------|-----------|
-| 제목 (h1~h4) | 번역 후 MD 헤딩으로 변환 |
-| 본문 텍스트 | 번역 |
+| 요소                         | 처리 방법                                        |
+| ---------------------------- | ------------------------------------------------ |
+| 제목 (h1~h4)                 | 번역 후 MD 헤딩으로 변환                         |
+| 본문 텍스트                  | 번역                                             |
 | 코드블록 (`<pre>`, `<code>`) | **번역 안 함**, 원문 그대로 MD 코드블록으로 변환 |
-| 인라인 코드 | **번역 안 함**, 백틱으로 감싸기 |
-| 이미지 (`<img>`) | 로컬 다운로드 후 상대경로로 교체 |
-| 링크 (`<a>`) | 원문 URL 유지, 링크 텍스트만 번역 |
-| 인용구 (`<blockquote>`) | 번역 후 MD `>` 인용으로 변환 |
-| 수평선, 구분자 | 그대로 유지 |
+| 인라인 코드                  | **번역 안 함**, 백틱으로 감싸기                  |
+| 이미지 (`<img>`)             | 로컬 다운로드 후 상대경로로 교체                 |
+| 링크 (`<a>`)                 | 원문 URL 유지, 링크 텍스트만 번역                |
+| 인용구 (`<blockquote>`)      | 번역 후 MD `>` 인용으로 변환                     |
+| 수평선, 구분자               | 그대로 유지                                      |
 
 ### 코드블록 보호 로직
 
@@ -140,7 +156,7 @@ slug = urlparse(url).path.split('/')[-1]
 
 ## 출력 Markdown 형식
 
-```markdown
+````markdown
 # 번역된 제목
 
 > 원문: [원문 제목](원문 URL)  
@@ -157,9 +173,11 @@ slug = urlparse(url).path.split('/')[-1]
 def hello():
     print("Hello, World!")
 ```
+````
 
 번역된 내용 계속...
-```
+
+````
 
 ---
 
@@ -178,7 +196,7 @@ def hello():
 import deepl
 translator = deepl.Translator(auth_key)
 result = translator.translate_text(text, target_lang="KO")
-```
+````
 
 - 단락 단위로 번역 요청
 - 한 번에 너무 긴 텍스트는 **문단 단위로 분할** 후 순차 번역
@@ -201,14 +219,14 @@ DEEPL_AUTH_KEY=
 
 ## 에러 처리
 
-| 상황 | 처리 |
-|------|------|
-| 페이월 감지 | 에러 메시지 출력 후 종료 |
+| 상황                      | 처리                              |
+| ------------------------- | --------------------------------- |
+| 페이월 감지               | 에러 메시지 출력 후 종료          |
 | browser-harness 연결 실패 | Chrome 실행 여부 확인 안내 메시지 |
-| 이미지 다운로드 실패 | 원본 URL 유지, 경고 로그 |
-| 번역 API 실패 | 원문 유지, 경고 로그 |
-| DeepL 할당량 초과 | 명확한 에러 메시지 출력 후 종료 |
-| 네트워크 타임아웃 | 3회 재시도 후 종료 |
+| 이미지 다운로드 실패      | 원본 URL 유지, 경고 로그          |
+| 번역 API 실패             | 원문 유지, 경고 로그              |
+| DeepL 할당량 초과         | 명확한 에러 메시지 출력 후 종료   |
+| 네트워크 타임아웃         | 3회 재시도 후 종료                |
 
 ---
 
