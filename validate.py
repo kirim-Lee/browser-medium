@@ -11,10 +11,11 @@ load_dotenv()
 @click.argument("original", required=False)
 @click.option("--threshold", default=1, show_default=True, help="문장 수 차이 허용 범위")
 @click.option("--nltk-only", is_flag=True, help="LLM 호출 없이 nltk만 실행")
+@click.option("--auto-fix", is_flag=True, help="이슈 단락을 suggestion으로 자동 수정")
 @click.option("--skip-short", default=100, show_default=True, help="이 글자 수 미만 단락 스킵")
 @click.option("--report", "report_dir", default="./reports", show_default=True, help="리포트 저장 경로")
 @click.option("--no-report", is_flag=True, help="리포트 파일 저장 안 함")
-def validate(target, original, threshold, nltk_only, skip_short, report_dir, no_report):
+def validate(target, original, threshold, nltk_only, auto_fix, skip_short, report_dir, no_report):
     """번역 품질 검증.
 
     TARGET에 output/{slug}/ 디렉토리를 주면 index.md·original.md를 자동 참조.
@@ -59,6 +60,16 @@ def validate(target, original, threshold, nltk_only, skip_short, report_dir, no_
             click.echo(f"  [단락 {issue['paragraph_index']}] {desc}")
             if issue.get("suggestion"):
                 click.echo(f"    → 제안: {issue['suggestion']}")
+
+    if auto_fix and report["issues"]:
+        fixable = [i for i in report["issues"] if i.get("suggestion")]
+        if not fixable:
+            click.echo("\n[auto-fix] 적용할 수정 제안이 없습니다.")
+        else:
+            from validators.fixer import apply_fixes
+
+            fixed = apply_fixes(translated_path, fixable)
+            click.echo(f"\n[auto-fix] {fixed}개 단락 수정 완료 → {translated_path}")
 
     if not no_report and "report_path" in report:
         click.echo(f"\n리포트 저장: {report['report_path']}")
