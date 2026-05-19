@@ -4,3 +4,6 @@ deepl
 httpx
 click
 python-dotenv
+anthropic
+nltk
+kss
