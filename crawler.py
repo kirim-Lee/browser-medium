@@ -42,7 +42,7 @@ import time
 new_tab("{url}")
 wait_for_load()
 time.sleep(2)
-html = js("document.querySelector('article.meteredContent') ? document.querySelector('article.meteredContent').outerHTML : ''")
+html = js("document.querySelector('article.meteredContent, article') ? document.querySelector('article.meteredContent, article').outerHTML : ''")
 if not html:
     print("ERROR:article_not_found")
 else:

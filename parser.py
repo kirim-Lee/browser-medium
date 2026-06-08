@@ -49,7 +49,7 @@ def _is_skip_blockquote(el):
 
 def parse_article(html: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
-    article = soup.find("article", class_="meteredContent")
+    article = soup.find("article", class_="meteredContent") or soup.find("article")
     if not article:
         raise ValueError("아티클 컨테이너를 찾을 수 없습니다.")
 
