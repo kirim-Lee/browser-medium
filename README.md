@@ -53,13 +53,21 @@ DEEPL_AUTH_KEY=your-key-here
 전용 Chrome 프로필에 Medium 로그인이 필요합니다 **(최초 1회)**.
 
 ```bash
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-  --remote-debugging-port=9222 \
-  --user-data-dir=~/.config/chrome-medium
+npm run chrome
 ```
 
 Chrome이 열리면 Medium에 로그인 후 창을 닫으세요. 이후부터는 자동 로그인이
 유지됩니다.
+
+---
+
+## 매번 실행 전 — Chrome 시작
+
+번역 전에 Chrome을 먼저 백그라운드로 실행해야 합니다.
+
+```bash
+npm run chrome &
+```
 
 ---
 
