@@ -68,8 +68,12 @@ def validate(target, original, threshold, nltk_only, auto_fix, skip_short, repor
         else:
             from validators.fixer import apply_fixes
 
-            fixed = apply_fixes(translated_path, fixable)
-            click.echo(f"\n[auto-fix] {fixed}개 단락 수정 완료 → {translated_path}")
+            result = apply_fixes(translated_path, fixable)
+            click.echo(f"\n[auto-fix] 수정 완료: {len(result['fixed'])}개 / 실패: {len(result['skipped'])}개")
+            for f in result["fixed"]:
+                click.echo(f"  [✓ 단락 {f['index']}] 수정됨")
+            for s in result["skipped"]:
+                click.echo(f"  [✗ 단락 {s['index']}] 건너뜀 — {s['reason']}")
 
     if not no_report and "report_path" in report:
         click.echo(f"\n리포트 저장: {report['report_path']}")
