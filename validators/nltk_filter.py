@@ -1,4 +1,10 @@
+import re
+
 import nltk
+
+
+_HANGUL_RE = re.compile(r"[가-힣]")
+_ASCII_LETTER_RE = re.compile(r"[A-Za-z]")
 
 
 def extract_paragraphs(md_text: str) -> list:
@@ -71,6 +77,29 @@ def _count_sentences(text: str, language: str = "english") -> int:
     if language != "english" and _kss is not None:
         return len(_kss.split_sentences(text))
     return len(nltk.sent_tokenize(text, language=language))
+
+
+def detect_untranslated_paragraphs(src_paragraphs: list, tgt_paragraphs: list, min_ascii: int = 15) -> list:
+    """번역문에 한글이 전혀 없는데 영문 알파벳이 다수인 단락 = 미번역으로 판정.
+
+    문장 수 비교(detect_suspicious_paragraphs)는 영문 원문이 그대로 남으면
+    src/tgt 문장 수가 같아 diff=0이 되어 잡지 못한다. 이 함수가 그 구멍을 메운다.
+    """
+    flagged = []
+    for i, (src, tgt) in enumerate(zip(src_paragraphs, tgt_paragraphs)):
+        if _HANGUL_RE.search(tgt):
+            continue
+        if len(_ASCII_LETTER_RE.findall(tgt)) < min_ascii:
+            continue  # URL·짧은 영문 토큰 등 오탐 방지
+        flagged.append(
+            {
+                "index": i,
+                "reason": "untranslated",
+                "src_text": src,
+                "tgt_text": tgt,
+            }
+        )
+    return flagged
 
 
 def detect_suspicious_paragraphs(src_paragraphs: list, tgt_paragraphs: list, threshold: int = 1) -> list:

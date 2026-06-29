@@ -2,7 +2,11 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from validators.nltk_filter import detect_suspicious_paragraphs, extract_paragraphs
+from validators.nltk_filter import (
+    detect_suspicious_paragraphs,
+    detect_untranslated_paragraphs,
+    extract_paragraphs,
+)
 from validators.llm_validator import validate_with_llm
 
 
@@ -24,6 +28,25 @@ def run_validator(
 
     issues = []
     nltk_only_flags = []
+
+    # 미번역(영문 원문 그대로) 단락은 객관적 판정이므로 LLM 없이 바로 이슈로 등록
+    untranslated = detect_untranslated_paragraphs(src_paragraphs, tgt_paragraphs)
+    untranslated_idx = {u["index"] for u in untranslated}
+    for u in untranslated:
+        issues.append(
+            {
+                "paragraph_index": u["index"],
+                "untranslated": True,
+                "llm_confirmed": False,
+                "issue_description": "단락이 번역되지 않고 영문 원문이 그대로 남아 있습니다 (DeepL 호출 실패 추정).",
+                "suggestion": None,
+                "src_text": u["src_text"],
+                "tgt_text": u["tgt_text"],
+            }
+        )
+
+    # 미번역으로 이미 잡힌 단락은 문장 수 LLM 검증에서 제외 (중복 방지)
+    flagged = [f for f in flagged if f["index"] not in untranslated_idx]
 
     if not nltk_only and flagged:
         llm_results = validate_with_llm(flagged, skip_short)
@@ -54,7 +77,9 @@ def run_validator(
         "summary": {
             "total_paragraphs": len(src_paragraphs),
             "nltk_flagged": len(flagged),
-            "llm_confirmed_issues": len(issues),
+            "untranslated": len(untranslated),
+            "llm_confirmed_issues": len([i for i in issues if i.get("llm_confirmed")]),
+            "total_issues": len(issues),
         },
         "issues": issues,
         "nltk_only_flags": nltk_only_flags,

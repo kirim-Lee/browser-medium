@@ -7,6 +7,12 @@ _SKIP_CLASSES = {"pw-author-name", "pw-follower-count"}
 _SKIP_PHRASES = {"not a member", "read this story for free"}
 
 
+def _text(el):
+    # get_text(strip=True)는 인라인 노드를 개별 strip 후 빈 구분자로 이어붙여
+    # <code>/<em> 사이 공백을 삼킨다("the user"→"theuser"). 원본 공백을 보존하며 정규화.
+    return " ".join(el.get_text().split())
+
+
 def _has_class(el, cls):
     return cls in (el.get("class") or [])
 
@@ -54,10 +60,10 @@ def parse_article(html: str) -> dict:
         raise ValueError("아티클 컨테이너를 찾을 수 없습니다.")
 
     title_el = article.find("h1", class_="pw-post-title")
-    title = title_el.get_text(strip=True) if title_el else ""
+    title = _text(title_el) if title_el else ""
 
     blocks = []
-    for el in article.find_all(["h1", "h2", "h3", "h4", "p", "pre", "blockquote", "figure"]):
+    for el in article.find_all(["h1", "h2", "h3", "h4", "p", "pre", "blockquote", "figure", "ul", "ol"]):
         tag = el.name
 
         if tag == "h1":
@@ -65,20 +71,20 @@ def parse_article(html: str) -> dict:
                 continue  # 제목은 별도 처리
             if _is_skip_heading(el):
                 continue
-            blocks.append({"type": "heading", "level": 1, "text": el.get_text(strip=True)})
+            blocks.append({"type": "heading", "level": 1, "text": _text(el)})
 
         elif tag in ("h2", "h3", "h4"):
             if _is_skip_heading(el):
                 continue
             if _has_class(el, "pw-subtitle-paragraph"):
-                blocks.append({"type": "subtitle", "text": el.get_text(strip=True)})
+                blocks.append({"type": "subtitle", "text": _text(el)})
             else:
-                blocks.append({"type": "heading", "level": int(tag[1]), "text": el.get_text(strip=True)})
+                blocks.append({"type": "heading", "level": int(tag[1]), "text": _text(el)})
 
         elif tag == "p":
             if not _has_class(el, "pw-post-body-paragraph"):
                 continue
-            blocks.append({"type": "paragraph", "html": str(el), "text": el.get_text(strip=True)})
+            blocks.append({"type": "paragraph", "html": str(el), "text": _text(el)})
 
         elif tag == "pre":
             for br in el.find_all("br"):
@@ -89,7 +95,15 @@ def parse_article(html: str) -> dict:
         elif tag == "blockquote":
             if _is_skip_blockquote(el):
                 continue
-            blocks.append({"type": "blockquote", "text": el.get_text(strip=True)})
+            blocks.append({"type": "blockquote", "text": _text(el)})
+
+        elif tag in ("ul", "ol"):
+            # 중첩 리스트 중복 방지: 상위 ul/ol 안에 있으면 스킵
+            if el.find_parent(["ul", "ol"]):
+                continue
+            items = [_text(li) for li in el.find_all("li") if li.get_text(strip=True)]
+            if items:
+                blocks.append({"type": "list", "items": items})
 
         elif tag == "figure":
             img = el.find("img")

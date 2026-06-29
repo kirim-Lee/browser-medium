@@ -72,8 +72,12 @@ def translate(url, output, no_translate, no_images, lang, validate):
 
         report = run_validator(output_file, output_dir / "original.md")
         summary = report["summary"]
-        issues = summary["llm_confirmed_issues"]
-        click.echo(f"      총 단락: {summary['total_paragraphs']} | nltk 플래그: {summary['nltk_flagged']} | 확인된 이슈: {issues}")
+        issues = summary.get("total_issues", summary["llm_confirmed_issues"])
+        untranslated = summary.get("untranslated", 0)
+        click.echo(
+            f"      총 단락: {summary['total_paragraphs']} | nltk 플래그: {summary['nltk_flagged']} | "
+            f"미번역: {untranslated} | 확인된 이슈: {summary['llm_confirmed_issues']}"
+        )
         if issues > 0:
             click.echo(f"[warn] {issues}개 단락에 문제가 있습니다 — 리포트: {report['report_path']}")
         else:

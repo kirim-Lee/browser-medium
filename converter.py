@@ -36,6 +36,12 @@ def blocks_to_markdown(title: str, blocks: list, url: str) -> str:
                 lines.append(f"> {line}")
             lines.append("")
 
+        elif btype == "list":
+            items = block.get("translated_items", block.get("items", []))
+            for item in items:
+                lines.append(f"- {item}")
+            lines.append("")
+
         elif btype == "image":
             src = block.get("local_path", block["src"])
             alt = block.get("alt", "")

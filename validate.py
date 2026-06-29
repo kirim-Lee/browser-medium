@@ -51,6 +51,7 @@ def validate(target, original, threshold, nltk_only, auto_fix, skip_short, repor
     summary = report["summary"]
     click.echo(f"\n총 단락       : {summary['total_paragraphs']}")
     click.echo(f"nltk 플래그   : {summary['nltk_flagged']}")
+    click.echo(f"미번역 단락   : {summary.get('untranslated', 0)}")
     click.echo(f"확인된 이슈   : {summary['llm_confirmed_issues']}")
 
     if report["issues"]:
