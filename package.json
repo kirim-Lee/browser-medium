@@ -8,6 +8,8 @@
     "translate": "python3 main.py translate",
     "validate": "python3 validate.py",
     "run-all": "f() { python3 main.py translate \"$1\" --validate; }; f",
+    "run-all-review": "f() { python3 main.py translate \"$1\" --validate --review; }; f",
+    "review": "f() { python3 main.py translate \"$1\" --review; }; f",
     "preview": "f() { markserv \"output/$1/index.md\"; }; f",
     "chrome": "\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --remote-debugging-port=9222 --user-data-dir=~/.config/chrome-medium --no-first-run --no-default-browser-check"
   },

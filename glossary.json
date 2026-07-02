@@ -1,0 +1,11 @@
+{
+  "feature component": "피처 컴포넌트",
+  "feature components": "피처 컴포넌트",
+  "UI primitive": "UI 프리미티브",
+  "UI primitives": "UI 프리미티브",
+  "domain component": "도메인 컴포넌트",
+  "domain components": "도메인 컴포넌트",
+  "page-level composition": "페이지 수준 조합",
+  "container component": "컨테이너 컴포넌트",
+  "presentational component": "프레젠테이션 컴포넌트"
+}
