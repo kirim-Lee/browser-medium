@@ -5,3 +5,5 @@ __pycache__/
 .DS_Store
 node_modules/
 reports
+# 용어집 파일 락 (동시 리뷰용, 커밋 대상 아님)
+glossary.json.lock

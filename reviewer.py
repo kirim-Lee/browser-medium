@@ -50,8 +50,14 @@ edits에는 실제로 고쳐야 하는 단락만 포함하라. 문제 없으면 
 
 
 def _call_claude(prompt: str) -> dict:
+    # stdin=DEVNULL: claude 서브프로세스가 부모의 stdin(끝 게이트 확인 입력)을
+    # 가로채지 않도록 차단. 없으면 파이프 입력 시 click.confirm이 EOF로 Abort된다.
     proc = subprocess.run(
-        ["claude", "-p", prompt], capture_output=True, text=True, timeout=180
+        ["claude", "-p", prompt],
+        capture_output=True,
+        text=True,
+        timeout=180,
+        stdin=subprocess.DEVNULL,
     )
     raw = proc.stdout.strip()
     match = re.search(r"```(?:json)?\s*([\s\S]+?)\s*```", raw)
