@@ -8,8 +8,8 @@
 """
 
 import fcntl
+import hashlib
 import json
-import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -86,24 +86,88 @@ def save_glossary(glossary: dict, path: Path = GLOSSARY_PATH) -> None:
     )
 
 
-def make_deepl_glossary(translator, glossary: dict, source_lang: str, target_lang: str):
-    """글로서리 dict로 DeepL 서버 글로서리 객체 생성. 실패/빈 경우 None.
+CACHE_PATH = Path(".glossary_cache.json")
 
-    호출 측은 사용 후 반드시 translator.delete_glossary(obj)로 정리해야 한다.
 
-    이름은 실행마다 고유(medium-translate-<uuid>)하게 만든다. 동시 번역 시
-    프로세스끼리 같은 이름을 공유하지 않아 서로 간섭/삭제하지 않는다.
+def _glossary_hash(glossary: dict, source_lang: str, target_lang: str) -> str:
+    payload = json.dumps(
+        {"g": glossary, "s": source_lang, "t": target_lang}, sort_keys=True, ensure_ascii=False
+    )
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+
+
+def _create_with_cleanup(translator, glossary, source_lang, target_lang, old_id):
+    name = f"medium-shared-{source_lang}-{target_lang}"
+
+    def _create():
+        return translator.create_glossary(
+            name, source_lang=source_lang, target_lang=target_lang, entries=glossary
+        )
+
+    if old_id:  # 내용이 바뀌었을 때만 기존 공유 글로서리 교체
+        try:
+            translator.delete_glossary(old_id)
+        except Exception:
+            pass
+    try:
+        return _create()
+    except Exception as e:
+        # 한도 초과("Too many glossaries") → 우리가 만든 medium-* 잔재를 싹 정리 후 1회 재시도
+        if "glossar" in str(e).lower() or "quota" in str(e).lower():
+            try:
+                for g in translator.list_glossaries():
+                    if g.name.startswith("medium-"):
+                        try:
+                            translator.delete_glossary(g)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+            return _create()
+        raise
+
+
+def get_or_create_shared_glossary(
+    translator, glossary: dict, source_lang: str, target_lang: str, cache_path: Path = CACHE_PATH
+):
+    """병렬 안전한 '공유' DeepL 글로서리. 실패/빈 경우 None.
+
+    내용+언어쌍 해시로 캐시(.glossary_cache.json)해 서버 글로서리를 **1개만** 유지·재사용한다.
+    실행마다 만들지/지우지 않으므로 병렬 실행 시 'Too many glossaries' 한도를 넘지 않는다.
+    락으로 read-modify-write를 직렬화해, 동시에 여러 프로세스가 떠도 최초 1개만 생성된다.
+    (공유 자산이므로 호출 측은 삭제하지 않는다.)
     """
     if not glossary:
         return None
 
+    key = f"{source_lang}->{target_lang}"
+    h = _glossary_hash(glossary, source_lang, target_lang)
+    cache_path = Path(cache_path)
     try:
-        return translator.create_glossary(
-            f"medium-translate-{uuid.uuid4().hex[:8]}",
-            source_lang=source_lang,
-            target_lang=target_lang,
-            entries=glossary,
-        )
+        with _lock(cache_path):
+            cache = {}
+            if cache_path.exists():
+                try:
+                    cache = json.loads(cache_path.read_text(encoding="utf-8"))
+                except Exception:
+                    cache = {}
+            entry = cache.get(key)
+
+            # 캐시 적중 + 내용 동일 → 서버에 아직 있으면 그대로 재사용
+            if entry and entry.get("hash") == h:
+                try:
+                    return translator.get_glossary(entry["id"])
+                except Exception:
+                    pass  # 서버에서 사라졌으면 아래에서 재생성
+
+            obj = _create_with_cleanup(
+                translator, glossary, source_lang, target_lang, entry.get("id") if entry else None
+            )
+            cache[key] = {"hash": h, "id": obj.glossary_id}
+            cache_path.write_text(
+                json.dumps(cache, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            return obj
     except Exception as e:
-        print(f"[warn] DeepL 글로서리 생성 실패, 미적용으로 진행: {e}")
+        print(f"[warn] DeepL 글로서리 준비 실패, 미적용으로 진행: {e}")
         return None

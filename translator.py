@@ -66,20 +66,15 @@ def translate_blocks(
 
     glossary_obj = None
     if glossary:
-        from glossary import make_deepl_glossary
+        from glossary import get_or_create_shared_glossary
 
-        glossary_obj = make_deepl_glossary(translator, glossary, source_lang, target_lang)
+        # 공유 글로서리(내용 해시로 캐시·재사용). 병렬 실행에도 서버에 1개만 유지되어
+        # 'Too many glossaries' 한도를 넘지 않는다. 공유 자산이므로 여기서 삭제하지 않는다.
+        glossary_obj = get_or_create_shared_glossary(translator, glossary, source_lang, target_lang)
         if glossary_obj is not None:
-            print(f"[glossary] {len(glossary)}개 용어 적용")
+            print(f"[glossary] {len(glossary)}개 용어 적용(공유)")
 
-    try:
-        return _translate_loop(translator, blocks, target_lang, glossary_obj, result, failures)
-    finally:
-        if glossary_obj is not None:
-            try:
-                translator.delete_glossary(glossary_obj)
-            except Exception:
-                pass
+    return _translate_loop(translator, blocks, target_lang, glossary_obj, result, failures)
 
 
 def _translate_loop(translator, blocks, target_lang, glossary_obj, result, failures):

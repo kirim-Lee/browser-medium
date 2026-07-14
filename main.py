@@ -70,6 +70,7 @@ def translate(url, output, no_translate, no_images, lang, validate, review):
 
     click.echo(f"\n완료: {output_file}")
 
+    issues = None
     if validate:
         click.echo("\n[검증] 번역 품질 검증 중...")
         from validators.reporter import run_validator
@@ -86,6 +87,12 @@ def translate(url, output, no_translate, no_images, lang, validate, review):
             click.echo(f"[warn] {issues}개 단락에 문제가 있습니다 — 리포트: {report['report_path']}")
         else:
             click.echo("      검증 완료 — 이슈 없음")
+
+    # 번역 이력 로그 (translations.json에 slug 기준 upsert, 병렬 안전)
+    if not no_translate:
+        from logbook import record_translation
+
+        record_translation(slug, url, title, len(blocks), issues)
 
     if review and not no_translate:
         _run_review(output_file)

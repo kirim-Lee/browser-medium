@@ -7,3 +7,8 @@ node_modules/
 reports
 # 용어집 파일 락 (동시 리뷰용, 커밋 대상 아님)
 glossary.json.lock
+
+# DeepL 공유 글로서리 캐시(서버 id, 머신 로컬 상태)
+.glossary_cache.json
+# 각종 파일 락
+*.lock
